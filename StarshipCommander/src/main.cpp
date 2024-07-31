@@ -1,39 +1,72 @@
-#include "../include/colors/colors.hpp"
+//#include "../include/colors/colors.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
 using namespace std;
 
+class Ship {
+    public:
+        string model;
+        int price;
+};
+
 class PlayerShip {
     public:
-        string name;
-        string location;
-        float health;
-        float maxHealth;
-        float shield;
-        float maxShield;
-        float gold;
+        string shipname;
+        string location = "planet";
+        Planet* currentPlanet;
+        SolarSystem* currentSolarSystem;
+        Galaxy* currentGalaxy;
+        float health = 100;
+        float maxHealth = 100;
+        float shield = 100;
+        float maxShield = 100;
+        float credits = 0;
+        Ship ship;
         vector<string> inventory;
-    
-    PlayerShip(string name) {
-        this->name = name;
-        location = "Earth";
-        health = 100;
-        maxHealth = 100;
-        shield = 100;
-        maxShield = 100;
-        gold = 0;
-    }
+};
+
+
+class Traveler {
+    string name;
+    string race;
+    Ship ship;
+};
+
+//has access to galactic market
+class SpaceStation {
+    public:
+        string name;
+        vector<Traveler> travelers;
+};
+
+class Planet {
+    public:
+        string name;
+        SolarSystem* solarSystem;
+};;
+
+class SolarSystem {
+    public:
+        string name;
+        SpaceStation spaceStation;
+        vector<Planet> planets;
+};
+
+class Galaxy {
+    public:
+        vector<SolarSystem> solarSystems;
 };
 
 int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
 int main() {
-    string name;
+    string choosename;
     cout << "Enter your ship's name: ";
-    cin >> name;
+    getline(cin, choosename);
 
-    PlayerShip playership(name);
-    cout << "Hey Captain, the " << name << " is currently located in " << playership.location << ", what's our next move?" << endl;
+    PlayerShip playership;
+    playership.shipname = choosename;
+    cout << "Hey Captain, the " << choosename << " is currently located in " << playership.location << ", what's our next move?" << endl;
     
     string a;
     cin >> a;
