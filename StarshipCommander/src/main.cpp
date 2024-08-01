@@ -3,16 +3,19 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <functional>
 #include <vector>
 using namespace std;
 using json = nlohmann::json;
 
+//g++ src/main.cpp -o build/StarshipCommander
+
 class NamingManager {
     public:
-        vector<string> galaxyNames;
-        vector<string> starSystemNames;
+        vector<string> genericWords;
         string greekNumbers[10] = {"Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota", "Kappa"};
 
+        int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
         string int_to_roman(int a) {
             string ans;
             string M[] = {"","M","MM","MMM"};
@@ -23,22 +26,64 @@ class NamingManager {
             return ans;
         }
         string generateGalaxyName() {
-            return greekNumbers[rand_range(0, 9)] + " " + galaxyNames[rand_range(0, galaxyNames.size() - 1)];
+            return greekNumbers[rand_range(0, 9)] + " " + genericWords[rand_range(0, genericWords.size() - 1)];
         }
         string generateStarSystemName(int galaxyindex, int systemindex) {
-            return "SYS" + to_string(galaxyindex+1) + "-" + to_string(systemindex+1) + " " + starSystemNames[rand_range(0, starSystemNames.size() - 1)];
+            return "SYS" + to_string(galaxyindex+1) + "-" + to_string(systemindex+1) + " " + genericWords[rand_range(0, genericWords.size() - 1)];
         }
-        string generatePlanetName(int planetindex) { //might change this to consider planetary properties
-            return 
+        string generatePlanetName(string systemname, int planetindex) { //might change this to consider planetary properties
+            string systemNamePart = systemname.substr(systemname.find(' ') + 1);
+            return systemNamePart + " " + int_to_roman(planetindex+1);
         }
         
-
+        void init() {
+            ifstream f("../jsons/spaceNames.json");
+            json data = json::parse(f);
+            for (auto& element : data["names"]) {
+                genericWords.push_back(element);
+            }
+        }
 };
 
 class Ship {
     public:
         string model;
         int price;
+};
+
+class Traveler {
+    string name;
+    string race;
+    Ship ship;
+};
+
+//has access to galactic market
+class SpaceStation {
+    public:
+        string name;
+        vector<Traveler> travelers;
+};
+
+class Planet {
+    public:
+        string name;
+        //want to add anomalies, resources, travelers, etc.
+    Planet(string name) {
+        this->name = name;
+    }
+};;
+
+class StarSystem {
+    public:
+        string name;
+        SpaceStation spaceStation;
+        vector<Planet> planets;
+};
+
+class Galaxy {
+    public:
+        string name;
+        vector<StarSystem> starSystems;
 };
 
 class PlayerShip {
@@ -57,51 +102,14 @@ class PlayerShip {
         vector<string> inventory;
 };
 
-
-class Traveler {
-    string name;
-    string race;
-    Ship ship;
-};
-
-//has access to galactic market
-class SpaceStation {
-    public:
-        string name;
-        vector<Traveler> travelers;
-};
-
-class Planet {
-    public:
-        string name;
-        StarSystem* starSystem;
-        //want to add anomalies, resources, travelers, etc.
-    Planet(string name, StarSystem* starSystem) {
-        this->name = name;
-        this->starSystem = starSystem;
-    }
-};;
-
-class StarSystem {
-    public:
-        string name;
-        SpaceStation spaceStation;
-        vector<Planet> planets;
-};
-
-class Galaxy {
-    public:
-        string name;
-        vector<StarSystem> starSystems;
-};
-
 Galaxy genesisGalaxy(NamingManager* namingManager) {
     Galaxy galaxy;
+    galaxy.name = namingManager->generateGalaxyName();
     for (int i = 0; i < 10; i++) {
         StarSystem starSystem;
         starSystem.name = namingManager->generateStarSystemName(0, i);
         for (int j = 0; j < 10; j++) {
-            starSystem.planets.push_back(Planet(namingManager->generatePlanetName(), &starSystem));
+            starSystem.planets.push_back(Planet(namingManager->generatePlanetName(starSystem.name, j)));
         }
         galaxy.starSystems.push_back(starSystem);
     }
@@ -109,12 +117,19 @@ Galaxy genesisGalaxy(NamingManager* namingManager) {
 }
 int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
 int main() {
-    vector<Galaxy> galaxies;
-    galaxies.push_back(genesisGalaxy());
-
     string choosename;
     cout << "Enter your ship's name: ";
     getline(cin, choosename);
+
+    hash<string> hash_fn;
+    size_t hash = hash_fn(choosename);
+    srand(static_cast<unsigned int>(hash));
+
+    NamingManager namingManager;
+    namingManager.init();
+
+    vector<Galaxy> galaxies;
+    galaxies.push_back(genesisGalaxy(&namingManager));
 
     PlayerShip playership;
 
@@ -123,9 +138,14 @@ int main() {
     playership.currentPlanet = &playership.currentStarSystem->planets[0];
 
     playership.shipname = choosename;
-    cout << "Hey Captain!" << endl;
-    cout << "The " << choosename << " are currently on " << playership.currentPlanet->name << " in the " << playership.currentStarSystem->name << " star system (Galaxy: " << playership.currentGalaxy->name << ")" << endl;
-    
+
+    string shipsrc = choosename + ": ";
+
+    cout << colors::bright_white << shipsrc << colors::reset << "Beep Beep!" << endl;
+    cout << colors::bright_white << shipsrc << colors::reset <<  "Hello Captain, this is your ship's AI" << endl;
+    cout << colors::bright_white << shipsrc << colors::reset <<  "We are currently on " << playership.currentPlanet->name << " in the " << playership.currentStarSystem->name << " star system (Galaxy: " << playership.currentGalaxy->name << ")" << endl;
+    cout << "" << endl;
+
     string a;
     cin >> a;
     return 0;
