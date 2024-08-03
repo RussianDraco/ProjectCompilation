@@ -165,10 +165,10 @@ class Game { //holds pointers torwards to all important classes to allow command
 
 void warpToGalaxy(Game& game, string arg) {
     cout << "Attempting warp to galaxy: " << arg << "..." << endl;
-    for (auto galaxy : *game.galaxies) {
-        if (galaxy.name == arg) {
-            game.playerShip->currentGalaxy = &galaxy;
-            game.playerShip->currentStarSystem = &galaxy.starSystems[0];
+    for (int i = 0; i < game.galaxies->size(); i++) {
+        if ((*game.galaxies)[i].name == arg) {
+            game.playerShip->currentGalaxy = &(*game.galaxies)[i];
+            game.playerShip->currentStarSystem = &((*game.playerShip->currentGalaxy).starSystems)[0];
             game.playerShip->currentPlanet = nullptr;
             game.playerShip->currentSpaceStation = nullptr;
             cout << "Warp successful!" << endl;
@@ -247,6 +247,11 @@ Galaxy generateGalaxy(NamingManager* namingManager) {
     for (int i = 0; i < STAR_SYSTEM_COUNT; i++) {
         StarSystem starSystem;
         starSystem.name = namingManager->generateStarSystemName(0, i);
+        if (rand() % 2 == 0) {
+            SpaceStation spaceStation;
+            spaceStation.name = starSystem.name + " SS";
+            starSystem.spaceStation = spaceStation;
+        }
         for (int j = 0; j < PLANET_COUNT; j++) {
             starSystem.planets.push_back(Planet(namingManager->generatePlanetName(starSystem.name, j)));
         }
@@ -291,7 +296,7 @@ int main() {
     for (int g = 0; g < GALAXY_COUNT; g++) {galaxies.push_back(generateGalaxy(&namingManager));}
     for (auto galaxy : galaxies) {game.galaxyNames.push_back(galaxy.name);}
 
-    playership.currentGalaxy = &galaxies[0]; playership.currentStarSystem = &playership.currentGalaxy->starSystems[0]; playership.currentPlanet = &playership.currentStarSystem->planets[0];
+    playership.currentGalaxy = &galaxies[0]; playership.currentStarSystem = &playership.currentGalaxy->starSystems[0]; playership.currentPlanet = &playership.currentStarSystem->planets[0]; playership.currentSpaceStation = nullptr;
     playership.shipname = choosename;
     string shipsrc = choosename + ": ";
 
