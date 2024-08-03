@@ -7,6 +7,7 @@
 #include <vector>
 using namespace std;
 using json = nlohmann::json;
+using string = std::string;
 
 const int GALAXY_COUNT = 5;
 const int STAR_SYSTEM_COUNT = 10;
@@ -28,6 +29,8 @@ Ideas:
 - Travelers
 - Planets with different properties
 */
+
+class Game;
 
 class NamingManager {
     public:
@@ -85,38 +88,21 @@ class CommandManager {
                 Action action = commands[name];
                 action.execute(arg);
             } else {
-                cout << "Unknown command." << endl;
+                std::cout << "Unknown command." << endl;
             }
         }
 
         void printOptions() {
+            cout << "--------------------Actions--------------------" << endl;
             for (auto& command : commands) {
                 cout << "[" << command.first << "] " << command.second.description << endl;
             }
         }
 };
-//ACTIONS START
-
-void warpToGalaxy(Game& game, CommandManager& commandManager, string arg) {
-    cout << "Attempting warp to galaxy: " << arg << "..." << endl;
-    for (auto galaxy : *game.galaxies) {
-        if (galaxy.name == arg) {
-            game.playerShip->currentGalaxy = &galaxy;
-            game.playerShip->currentStarSystem = &galaxy.starSystems[0];
-            game.playerShip->currentPlanet = nullptr;
-            cout << "Arrived in the " << colors::yellow << game.playerShip->currentStarSystem->name << colors::reset << " star system in the " << colors::magenta << game.playerShip->currentGalaxy->name << colors::reset << " galaxy" << endl;
-            return;
-        }
-    }
-    cout << "Galaxy not found" << endl;
-}
-
-
-//END
 
 class Ship {
     public:
-        string model;
+        std::string model;
         int price;
 };
 class Traveler {
@@ -152,7 +138,7 @@ class Galaxy {
 class PlayerShip {
     public:
         string shipname;
-        string location = "planet";
+        SpaceStation* currentSpaceStation;
         Planet* currentPlanet;
         StarSystem* currentStarSystem;
         Galaxy* currentGalaxy;
@@ -171,7 +157,89 @@ class Game { //holds pointers torwards to all important classes to allow command
         CommandManager* commandManager;
         NamingManager* namingManager;
         vector<Galaxy>* galaxies;
+
+        vector<string> galaxyNames;
 };
+
+//ACTIONS START
+
+void warpToGalaxy(Game& game, string arg) {
+    cout << "Attempting warp to galaxy: " << arg << "..." << endl;
+    for (auto galaxy : *game.galaxies) {
+        if (galaxy.name == arg) {
+            game.playerShip->currentGalaxy = &galaxy;
+            game.playerShip->currentStarSystem = &galaxy.starSystems[0];
+            game.playerShip->currentPlanet = nullptr;
+            game.playerShip->currentSpaceStation = nullptr;
+            cout << "Warp successful!" << endl;
+            cout << "Arrived in the " << colors::yellow << game.playerShip->currentStarSystem->name << colors::reset << " star system in the " << colors::magenta << game.playerShip->currentGalaxy->name << colors::reset << " galaxy" << endl;
+            return;
+        }
+    }
+    cout << "Galaxy not found" << endl;
+}
+void flyToStarSystem(Game& game, string arg) {
+    cout << "Attempting to fly to star system: " << arg << "..." << endl;
+    for (auto starSystem : game.playerShip->currentGalaxy->starSystems) {
+        if (starSystem.name == arg) {
+            game.playerShip->currentStarSystem = &starSystem;
+            game.playerShip->currentPlanet = &starSystem.planets[0];
+            game.playerShip->currentSpaceStation = nullptr;
+            cout << (*game.playerShip).shipname << " just flew into the " << colors::yellow << game.playerShip->currentStarSystem->name << colors::reset << " star system" << endl;
+            return;
+        }
+    }
+    cout << "Star system not found" << endl;
+}
+void checkNavigator(Game& game, string arg) {
+    cout << "---NAVIGATOR---" << endl;
+    cout << "--Current Location--" << endl;
+    cout << "Galaxy: " << colors::magenta << game.playerShip->currentGalaxy->name << colors::reset << endl;
+    cout << "Star System: " << colors::yellow << game.playerShip->currentStarSystem->name << colors::reset << endl;
+    if (game.playerShip->currentPlanet != nullptr) {
+        cout << "Planet: " << colors::grey << game.playerShip->currentPlanet->name << colors::reset << endl;
+    }
+    if (game.playerShip->currentSpaceStation != nullptr) {
+        cout << "Space Station: " << colors::bright_white << game.playerShip->currentSpaceStation->name << colors::reset << endl;
+    }
+
+    cout << "--Nearby Galaxies--" << endl;
+    int galaxyIndex = 0;
+    for (int i = 0; i < GALAXY_COUNT; i++) {
+        if (game.galaxyNames[i] == game.playerShip->currentGalaxy->name) {
+            galaxyIndex = i;
+            break;
+        }
+    }
+    cout << "Left: " << colors::magenta << game.galaxyNames[(galaxyIndex - 1 + GALAXY_COUNT) % GALAXY_COUNT] << colors::reset << endl;
+    cout << "Right: " << colors::magenta << game.galaxyNames[(galaxyIndex + 1) % GALAXY_COUNT] << colors::reset << endl;
+
+    cout << "--Nearby Star Systems--" << endl;
+    int starSystemIndex = 0;
+    for (int i = 0; i < STAR_SYSTEM_COUNT; i++) {
+        if (game.playerShip->currentGalaxy->starSystems[i].name == game.playerShip->currentStarSystem->name) {
+            starSystemIndex = i;
+            break;
+        }
+    }
+    cout << "2 Left: " << colors::yellow << game.playerShip->currentGalaxy->starSystems[(starSystemIndex - 2 + STAR_SYSTEM_COUNT) % STAR_SYSTEM_COUNT].name << colors::reset << endl;
+    cout << "1 Left: " << colors::yellow << game.playerShip->currentGalaxy->starSystems[(starSystemIndex - 1 + STAR_SYSTEM_COUNT) % STAR_SYSTEM_COUNT].name << colors::reset << endl;
+    cout << "1 Right: " << colors::yellow << game.playerShip->currentGalaxy->starSystems[(starSystemIndex + 1) % STAR_SYSTEM_COUNT].name << colors::reset << endl;
+    cout << "2 Right: " << colors::yellow << game.playerShip->currentGalaxy->starSystems[(starSystemIndex + 2) % STAR_SYSTEM_COUNT].name << colors::reset << endl;
+
+    cout << "--Planets in Star System--" << endl;
+    for (auto planet : game.playerShip->currentStarSystem->planets) {
+        cout << planet.name << colors::grey << colors::reset << endl;
+    }
+
+    if (!game.playerShip->currentStarSystem->spaceStation.name.empty()) {
+        cout << "--Star System's Space Station--" << endl;
+        cout << game.playerShip->currentStarSystem->spaceStation.name << endl;
+    }
+}
+
+
+//END
 
 Galaxy generateGalaxy(NamingManager* namingManager) {
     Galaxy galaxy;
@@ -215,9 +283,13 @@ int main() {
     namingManager.init();
 
     //commands are added here
-    commandManager.addCommand("warp", "Warp to a new galaxy", [&](string arg) { warpToGalaxy(game, commandManager, arg); });
+    commandManager.addCommand("warp", "Warp to a new galaxy", [&](string arg) { warpToGalaxy(game, arg); });
+    commandManager.addCommand("navigator", "Check the navigator for information", [&](string arg) { checkNavigator(game, arg); });
+    commandManager.addCommand("starfly", "Fly to a new star system", [&](string arg) { flyToStarSystem(game, arg); });
+
 
     for (int g = 0; g < GALAXY_COUNT; g++) {galaxies.push_back(generateGalaxy(&namingManager));}
+    for (auto galaxy : galaxies) {game.galaxyNames.push_back(galaxy.name);}
 
     playership.currentGalaxy = &galaxies[0]; playership.currentStarSystem = &playership.currentGalaxy->starSystems[0]; playership.currentPlanet = &playership.currentStarSystem->planets[0];
     playership.shipname = choosename;
