@@ -12,7 +12,6 @@ using string = std::string;
 
 const int GALAXY_COUNT = 5;
 const int STAR_SYSTEM_COUNT = 10;
-const int PLANET_COUNT = 10;
 
 //g++ src/main.cpp -o build/StarshipCommander
 /*
@@ -74,7 +73,7 @@ class NamingManager {
 };
 class PlanetProperties {
     public:
-        int size; //
+        int size;
         int temperature;
         int atmosphere;
         vector<pair<string, float>> resources;
@@ -84,7 +83,7 @@ class PlanetProperties {
     PlanetProperties(int id) {
         seed_seq seed{ id };
         mt19937 generator(seed);
-        uniform_int_distribution<int> sizeDist(1, 10);
+        uniform_int_distribution<int> sizeDist(1, 5);
         uniform_int_distribution<int> temperatureDist(-150, 150); //celsius
         uniform_int_distribution<int> atmosphereDist(0, 4); // Type of atmosphere, range: 0 - 4 (0: None, 1: Thin, 2: Normal, 3: Thick, 4: Toxic)
         //!!NEED TO ADD RESOURCES, ANOMALIES, BUILDINGS
@@ -93,12 +92,31 @@ class PlanetProperties {
         temperature = temperatureDist(generator);
         atmosphere = atmosphereDist(generator);
         
+        
     }
 };
 class PlanetManager { //to use less memory planets will be given an id and their properties can be regenerated
     public:
         PlanetProperties retrievePlanetProperties(int id) {
             return PlanetProperties(id);
+        }
+        string GetSize(int size) {
+            switch (size) {
+                case 1: return "Dwarf";
+                case 2: return "Small";
+                case 3: return "Medium";
+                case 4: return "Large";
+                case 5: return "Giant";
+            }
+        }
+        string GetAtmosphere(int atmosphere) {
+            switch (atmosphere) {
+                case 0: return "None";
+                case 1: return "Thin";
+                case 2: return "Normal";
+                case 3: return "Thick";
+                case 4: return "Toxic";
+            }
         }
 };
 
@@ -154,9 +172,11 @@ class SpaceStation {
 class Planet {
     public:
         string name;
+        int id;
         //want to add anomalies, resources, travelers, etc.
     Planet(string name) {
         this->name = name;
+        id = hash<string>{}(name);
     }
 };;
 class StarSystem {
@@ -169,6 +189,45 @@ class Galaxy {
     public:
         string name;
         vector<StarSystem> starSystems;
+};
+class Inventory {
+    public:
+        vector<pair<string, int>> items;
+        int inventorySize = 10;
+
+        void addItem(string item, int amount) {
+            for (auto& i : items) {
+                if (i.first == item) {
+                    i.second += amount;
+                    return;
+                }
+            }
+            if (items.size() >= inventorySize) {
+                cout << "Inventory full" << endl;
+                return;
+            }
+        }
+        bool removeItem(string item, int amount) {
+            for (auto& i : items) {
+                if (i.first == item) {
+                    if (i.second >= amount) {
+                        i.second -= amount;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        bool hasItem(string item, int amount) {
+            for (auto& i : items) {
+                if (i.first == item) {
+                    if (i.second >= amount) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
 };
 class PlayerShip {
     public:
@@ -183,7 +242,7 @@ class PlayerShip {
         float maxShield = 100;
         float credits = 0;
         Ship ship;
-        vector<string> inventory;
+        Inventory inventory;
         vector<string> technologies;
 };
 class Game { //holds pointers torwards to all important classes to allow command running to access everything
@@ -191,6 +250,7 @@ class Game { //holds pointers torwards to all important classes to allow command
         PlayerShip* playerShip;
         CommandManager* commandManager;
         NamingManager* namingManager;
+        PlanetManager* planetManager;
         vector<Galaxy>* galaxies;
 
         vector<string> galaxyNames;
@@ -215,12 +275,18 @@ void warpToGalaxy(Game& game, string arg) {
 }
 void flyToStarSystem(Game& game, string arg) {
     cout << "Attempting to fly to star system: " << arg << "..." << endl;
+    if (!game.playerShip->inventory.hasItem("Warp Cell", 1)) {
+        cout << "Not enough warp cells to perform warp" << endl;
+        return;
+    }
+
     for (int i = 0; i < STAR_SYSTEM_COUNT; i++) {
         if (((*game.playerShip->currentGalaxy).starSystems)[i].name == arg) {
             game.playerShip->currentStarSystem = &((*game.playerShip->currentGalaxy).starSystems)[i];
             game.playerShip->currentPlanet = nullptr;
             game.playerShip->currentSpaceStation = nullptr;
             cout << (*game.playerShip).shipname << " just flew into the " << colors::yellow << game.playerShip->currentStarSystem->name << colors::reset << " star system" << endl;
+            game.playerShip->inventory.removeItem("Warp Cell", 1);
             return;
         }
     }
@@ -228,11 +294,15 @@ void flyToStarSystem(Game& game, string arg) {
 }
 void flyToPlanet(Game& game, string arg) {
     cout << "Attempting to fly to planet: " << arg << "..." << endl;
-    for (int i = 0; i < PLANET_COUNT; i++) {
+    for (int i = 0; i < game.playerShip->currentStarSystem->planets.size(); i++) {
         if (((*game.playerShip->currentStarSystem).planets)[i].name == arg) {
             game.playerShip->currentPlanet = &((*game.playerShip->currentStarSystem).planets)[i];
             game.playerShip->currentSpaceStation = nullptr;
-            cout << (*game.playerShip).shipname << " just landed on " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << endl;
+            cout << colors::bright_white << (*game.playerShip).shipname << ": " << colors::reset << "Setting navigational destination to " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << endl;
+            cout << colors::bright_white << (*game.playerShip).shipname << ": " << colors::reset << "Engaging planetary thrusters..." << endl;
+            cout << colors::bright_white << (*game.playerShip).shipname << ": " << colors::reset << "Entering atmosphere of " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << endl;
+            cout << colors::bright_white << (*game.playerShip).shipname << ": " << colors::reset << "Engaging landing sequence..." << endl;
+            cout << colors::bright_white << (*game.playerShip).shipname << ": " << colors::reset << "Successfully landed on " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << " [Note] Activate planetary scanner for additional information" << endl;
             return;
         }
     }
@@ -259,17 +329,6 @@ void checkNavigator(Game& game, string arg) {
         cout << "Space Station: " << colors::bright_white << game.playerShip->currentSpaceStation->name << colors::reset << endl;
     }
 
-    cout << "--Nearby Galaxies--" << endl;
-    int galaxyIndex = 0;
-    for (int i = 0; i < GALAXY_COUNT; i++) {
-        if (game.galaxyNames[i] == game.playerShip->currentGalaxy->name) {
-            galaxyIndex = i;
-            break;
-        }
-    }
-    cout << "Left: " << colors::magenta << game.galaxyNames[(galaxyIndex - 1 + GALAXY_COUNT) % GALAXY_COUNT] << colors::reset << endl;
-    cout << "Right: " << colors::magenta << game.galaxyNames[(galaxyIndex + 1) % GALAXY_COUNT] << colors::reset << endl;
-
     cout << "--Nearby Star Systems--" << endl;
     int starSystemIndex = 0;
     for (int i = 0; i < STAR_SYSTEM_COUNT; i++) {
@@ -293,10 +352,22 @@ void checkNavigator(Game& game, string arg) {
         cout << game.playerShip->currentStarSystem->spaceStation.name << endl;
     }
 }
+void activateScanner(Game& game, string arg) {
+    if (game.playerShip->currentPlanet == nullptr) {
+        cout << "No scanning subject" << endl;
+        return;
+    }
+    cout << "Scanning " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << "..." << endl;
+    PlanetProperties properties = game.planetManager->retrievePlanetProperties(game.playerShip->currentPlanet->id);
+    cout << "Size: " << game.planetManager->GetSize(properties.size) << endl;
+    cout << "Temperature: " << properties.temperature << "*C" << endl;
+    cout << "Atmosphere: " << game.planetManager->GetAtmosphere(properties.atmosphere) << endl;
+    //!!NEED TO ADD RESOURCES, ANOMALIES, BUILDINGS
+}
 
 
 //END
-
+int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
 Galaxy generateGalaxy(NamingManager* namingManager) {
     Galaxy galaxy;
     galaxy.name = namingManager->generateGalaxyName();
@@ -308,7 +379,7 @@ Galaxy generateGalaxy(NamingManager* namingManager) {
             spaceStation.name = starSystem.name + " SS";
             starSystem.spaceStation = spaceStation;
         }
-        for (int j = 0; j < PLANET_COUNT; j++) {
+        for (int j = 0; j < rand_range(1, 8); j++) {
             starSystem.planets.push_back(Planet(namingManager->generatePlanetName(starSystem.name, j)));
         }
         galaxy.starSystems.push_back(starSystem);
@@ -321,7 +392,6 @@ void passInput(string input, CommandManager& commandManager) {
     string arg = spacePos != string::npos ? input.substr(spacePos + 1) : "";
     commandManager.executeCommand(commandName, arg);
 }
-int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
 int main() {
     string choosename;
     cout << "Enter your ship's name: ";
@@ -335,20 +405,24 @@ int main() {
     CommandManager commandManager;
     vector<Galaxy> galaxies;
     PlayerShip playership;
+    PlanetManager planetManager;
     Game game;
     game.playerShip = &playership;
     game.commandManager = &commandManager;
     game.namingManager = &namingManager;
+    game.planetManager = &planetManager;
     game.galaxies = &galaxies;
 
     namingManager.init();
 
     //commands are added here
-    commandManager.addCommand("warp", "Warp to a new galaxy using warp cells (takes galaxy name)", [&](string arg) { warpToGalaxy(game, arg); });
+    //commandManager.addCommand("warp", "Warp to a new galaxy using warp cells (takes galaxy name)", [&](string arg) { warpToGalaxy(game, arg); }); //not a normal feature, idk how to/want to implement it
+
     commandManager.addCommand("navigator", "Check the navigator for information", [&](string arg) { checkNavigator(game, arg); });
-    commandManager.addCommand("starfly", "Fly to a new star system (takes star system name)", [&](string arg) { flyToStarSystem(game, arg); });
+    commandManager.addCommand("warp", "Warp to another star system using warp cells (takes star system name)", [&](string arg) { flyToStarSystem(game, arg); });
     commandManager.addCommand("fly", "Fly to a new planet (takes planet name)", [&](string arg) { flyToPlanet(game, arg); });
     commandManager.addCommand("dock", "Visit the space station in the current star system", [&](string arg) { visitSpaceStation(game, arg); });
+    commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { activateScanner(game, arg); });
 
     for (int g = 0; g < GALAXY_COUNT; g++) {galaxies.push_back(generateGalaxy(&namingManager));}
     for (auto galaxy : galaxies) {game.galaxyNames.push_back(galaxy.name);}
