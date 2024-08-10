@@ -76,29 +76,39 @@ class PlanetProperties {
         int size;
         int temperature;
         int atmosphere;
-        vector<pair<string, float>> resources;
+        vector<string> resources; //might add quantites
         vector<string> anomalies;
         vector<string> buildings;
     
-    PlanetProperties(int id) {
+    PlanetProperties(int id, vector<string>* allresources) {
         seed_seq seed{ id };
         mt19937 generator(seed);
         uniform_int_distribution<int> sizeDist(1, 5);
         uniform_int_distribution<int> temperatureDist(-150, 150); //celsius
         uniform_int_distribution<int> atmosphereDist(0, 4); // Type of atmosphere, range: 0 - 4 (0: None, 1: Thin, 2: Normal, 3: Thick, 4: Toxic)
+        uniform_int_distribution<int> resourceDist(0, allresources->size() - 1);
+
         //!!NEED TO ADD RESOURCES, ANOMALIES, BUILDINGS
 
         size = sizeDist(generator);
         temperature = temperatureDist(generator);
         atmosphere = atmosphereDist(generator);
-        
-        
+        for (int i = 0; i < rand_range(3, 6); i++) { resources.push_back((*allresources)[resourceDist(generator)]); }
     }
 };
 class PlanetManager { //to use less memory planets will be given an id and their properties can be regenerated
     public:
+        vector<string> resources;
+
+        void init() {
+            ifstream f("../jsons/extras.json");
+            json data = json::parse(f);
+            for (auto& element : data["resources"]) {
+                resources.push_back(element);
+            }
+        }
         PlanetProperties retrievePlanetProperties(int id) {
-            return PlanetProperties(id);
+            return PlanetProperties(id, &resources);
         }
         string GetSize(int size) {
             switch (size) {
@@ -124,21 +134,46 @@ class Action {
     public:
         string description;
         function<void(string)> execute;
+        string state;
+        string condition;
 };
 class CommandManager {
     public:
         map<string, Action> commands;
-        
-        void addCommand(string name, string description, function<void(string)> execute) {
+        string state = "general";
+        Game* game;
+
+        void addCommand(string name, string description, function<void(string)> execute, string state = "general", string condition = "") {
             Action action;
             action.description = description;
             action.execute = execute;
             commands[name] = action;
+            if (state.empty()) {state = "general";} action.state = state;
+            action.condition = condition;
         }
         
+        bool checkCondition(string condition) {
+            if (condition.empty()) {
+                return true;
+            }
+            
+            if (condition == "planet") { return game->playerShip->currentPlanet != nullptr; }
+            //if (condition == "spacestation") { return game->playerShip->currentSpaceStation != nullptr; }
+
+            cout << "ERROR: UNKNOWN CONDITION IN COMMANDMANAGER: " << condition << endl;
+        }
+
         void executeCommand(string name, string arg) {
-            if (commands.find(name) != commands.end()) {
+            if ((commands.find(name) != commands.end())) {
                 Action action = commands[name];
+                if (action.state != state) {
+                    cout << "Command not available in this state." << endl;
+                    return;
+                }
+                if (!checkCondition(action.condition)) {
+                    cout << "Cannot run this command." << endl;
+                    return;
+                }
                 action.execute(arg);
             } else {
                 std::cout << "Unknown command." << endl;
@@ -148,7 +183,9 @@ class CommandManager {
         void printOptions() {
             cout << "--------------------Actions--------------------" << endl;
             for (auto& command : commands) {
-                cout << "[" << command.first << "] " << command.second.description << endl;
+                if (command.second.state == state && checkCondition(command.second.condition)) {
+                    cout << "[" << command.first << "] " << command.second.description << endl;
+                }
             }
         }
 };
@@ -362,9 +399,16 @@ void activateScanner(Game& game, string arg) {
     cout << "Size: " << game.planetManager->GetSize(properties.size) << endl;
     cout << "Temperature: " << properties.temperature << "*C" << endl;
     cout << "Atmosphere: " << game.planetManager->GetAtmosphere(properties.atmosphere) << endl;
-    //!!NEED TO ADD RESOURCES, ANOMALIES, BUILDINGS
+    cout << "Resources:"; bool f=true; for (auto resource : properties.resources) { if (!f) {cout << ", ";} cout << resource; f = false; } cout << endl;
+    //!!NEED TO ADD ANOMALIES, BUILDINGS
 }
-
+void explorePlanet(Game& game, string arg) {
+    if (game.playerShip->currentPlanet == nullptr) {
+        cout << "No planet to explore" << endl;
+        return;
+    }
+    cout << "Exploring " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << "..." << endl;
+}
 
 //END
 int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
@@ -412,17 +456,19 @@ int main() {
     game.namingManager = &namingManager;
     game.planetManager = &planetManager;
     game.galaxies = &galaxies;
+    commandManager.game = &game;
 
     namingManager.init();
 
     //commands are added here
     //commandManager.addCommand("warp", "Warp to a new galaxy using warp cells (takes galaxy name)", [&](string arg) { warpToGalaxy(game, arg); }); //not a normal feature, idk how to/want to implement it
 
-    commandManager.addCommand("navigator", "Check the navigator for information", [&](string arg) { checkNavigator(game, arg); });
+    commandManager.addCommand("nav", "Check the navigator for information", [&](string arg) { checkNavigator(game, arg); });
     commandManager.addCommand("warp", "Warp to another star system using warp cells (takes star system name)", [&](string arg) { flyToStarSystem(game, arg); });
     commandManager.addCommand("fly", "Fly to a new planet (takes planet name)", [&](string arg) { flyToPlanet(game, arg); });
     commandManager.addCommand("dock", "Visit the space station in the current star system", [&](string arg) { visitSpaceStation(game, arg); });
-    commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { activateScanner(game, arg); });
+    commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { activateScanner(game, arg); }, "", "planet");
+    commandManager.addCommand("explore", "Use your planet robot brigade to explore the planet and gather resources", [&](string arg) { explorePlanet(game, arg); }, "", "planet");
 
     for (int g = 0; g < GALAXY_COUNT; g++) {galaxies.push_back(generateGalaxy(&namingManager));}
     for (auto galaxy : galaxies) {game.galaxyNames.push_back(galaxy.name);}
