@@ -152,6 +152,14 @@ class CommandManager {
             action.condition = condition;
         }
         
+        void changeState(string newState) {
+            if (newState.empty()) {
+                state = "general";
+                return;
+            }
+            state = newState;
+        }
+
         bool checkCondition(string condition) {
             if (condition.empty()) {
                 return true;
@@ -266,6 +274,20 @@ class Inventory {
             return false;
         }
 };
+class ExploreRobot {
+    public:
+        string type;
+        int health = 100;
+        int power = 100;
+
+    string Summary() {
+        return type + " [Health: " + to_string(health) + ", Power: " + to_string(power) + "]";
+    }
+
+    ExploreRobot(string type) {
+        this->type = type;
+    }
+};
 class PlayerShip {
     public:
         string shipname;
@@ -279,6 +301,7 @@ class PlayerShip {
         float maxShield = 100;
         float credits = 0;
         Ship ship;
+        vector<ExploreRobot> exploreRobots = {ExploreRobot("Miner"), ExploreRobot("Scout"), ExploreRobot("Fighter")};
         Inventory inventory;
         vector<string> technologies;
 };
@@ -407,7 +430,13 @@ void explorePlanet(Game& game, string arg) {
         cout << "No planet to explore" << endl;
         return;
     }
-    cout << "Exploring " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << "..." << endl;
+    game.commandManager->changeState("exploration");
+    cout << "Starting exploration mission on " << colors::blue << game.playerShip->currentPlanet->name << colors::reset << "..." << endl;
+    cout << "Preparing exploration robots..." << endl;
+    cout << "Available robots: " << endl;
+    for (auto robot : game.playerShip->exploreRobots) {
+        cout << ">" << robot.Summary() << endl;
+    }
 }
 
 //END
@@ -469,6 +498,8 @@ int main() {
     commandManager.addCommand("dock", "Visit the space station in the current star system", [&](string arg) { visitSpaceStation(game, arg); });
     commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { activateScanner(game, arg); }, "", "planet");
     commandManager.addCommand("explore", "Use your planet robot brigade to explore the planet and gather resources", [&](string arg) { explorePlanet(game, arg); }, "", "planet");
+    //exploration
+    commandManager.addCommand("return", "Complete the exploration mission and return to the ship", [&](string arg) { commandManager.changeState(""); });
 
     for (int g = 0; g < GALAXY_COUNT; g++) {galaxies.push_back(generateGalaxy(&namingManager));}
     for (auto galaxy : galaxies) {game.galaxyNames.push_back(galaxy.name);}
