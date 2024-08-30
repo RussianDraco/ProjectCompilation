@@ -35,6 +35,11 @@ Ideas:
 - Planets with different properties
 */
 
+/*
+Commented out code if temporarily out of use.
+*/
+
+
 class Game;
 
 class NamingManager {
@@ -83,6 +88,7 @@ class PlanetProperties {
         int atmosphere;
         vector<string> resources; //might add quantites
     
+    int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
     PlanetProperties(int id, vector<string>* allresources) {
         seed_seq seed{ id };
         mt19937 generator(seed);
@@ -130,6 +136,22 @@ class PlanetManager { //to use less memory planets will be given an id and their
             }
         }
 };
+/*class ExploreRobot {
+    public:
+        string type;
+        int id;
+        int health = 100;
+        int power = 100;
+
+    string Summary() {
+        return type + " ID=" + to_string(id) + " [Health: " + to_string(health) + ", Power: " + to_string(power) + "]";
+    }
+
+    ExploreRobot(string type, int id) {
+        this->type = type;
+        this->id = id;
+    }
+};
 class ExplorationManager {
     public:
         vector<string> allanomalies;
@@ -152,7 +174,7 @@ class ExplorationManager {
                 allbuildings.push_back(element);
             }
         }
-
+        int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
         void newExploration(Game& game) {
             PlanetProperties properties = game.planetManager->retrievePlanetProperties(game.playerShip->currentPlanet->id);
 
@@ -179,7 +201,7 @@ class ExplorationManager {
             locations.clear();
             locationPOIs.clear();
         }
-};
+};*/
 
 class Action {
     public:
@@ -216,13 +238,13 @@ class CommandManager {
                 return true;
             }
             
-            if (condition == "planet") { return game->playerShip->currentPlanet != nullptr; }
+            //if (condition == "planet") { return game->playerShip->currentPlanet != nullptr; }
             //if (condition == "spacestation") { return game->playerShip->currentSpaceStation != nullptr; }
 
             cout << "ERROR: UNKNOWN CONDITION IN COMMANDMANAGER: " << condition << endl;
         }
 
-        void executeCommand(string name, string arg) {
+        /*void executeCommand(string name, string arg) {
             if ((commands.find(name) != commands.end())) {
                 Action action = commands[name];
                 if (action.state != state) {
@@ -233,6 +255,14 @@ class CommandManager {
                     cout << "Cannot run this command." << endl;
                     return;
                 }
+                action.execute(arg);
+            } else {
+                std::cout << "Unknown command." << endl;
+            }
+        }*/
+        void executeCommand(string name, string arg) {
+            if (commands.find(name) != commands.end()) {
+                Action action = commands[name];
                 action.execute(arg);
             } else {
                 std::cout << "Unknown command." << endl;
@@ -325,22 +355,6 @@ class Inventory {
             return false;
         }
 };
-class ExploreRobot {
-    public:
-        string type;
-        int id;
-        int health = 100;
-        int power = 100;
-
-    string Summary() {
-        return type + " ID=" + to_string(id) + " [Health: " + to_string(health) + ", Power: " + to_string(power) + "]";
-    }
-
-    ExploreRobot(string type, int id) {
-        this->type = type;
-        this->id = id;
-    }
-};
 class PlayerShip {
     public:
         string shipname;
@@ -354,7 +368,7 @@ class PlayerShip {
         float maxShield = 100;
         float credits = 0;
         Ship ship;
-        vector<ExploreRobot> exploreRobots = {ExploreRobot("Miner", 0), ExploreRobot("Scout", 1), ExploreRobot("Harvester", 2)};
+        //vector<ExploreRobot> exploreRobots = {ExploreRobot("Miner", 0), ExploreRobot("Scout", 1), ExploreRobot("Harvester", 2)};
         Inventory inventory;
         vector<string> technologies;
 };
@@ -364,7 +378,7 @@ class Game { //holds pointers torwards to all important classes to allow command
         CommandManager* commandManager;
         NamingManager* namingManager;
         PlanetManager* planetManager;
-        ExplorationManager* explorationManager;
+        //ExplorationManager* explorationManager;
         vector<Galaxy>* galaxies;
 
         vector<string> galaxyNames;
@@ -479,7 +493,7 @@ void activateScanner(Game& game, string arg) {
     cout << "Resources:"; bool f=true; for (auto resource : properties.resources) { if (!f) {cout << ", ";} cout << resource; f = false; } cout << endl;
     //!!NEED TO ADD ANOMALIES, BUILDINGS
 }
-void explorePlanet(Game& game, string arg) {
+/*void explorePlanet(Game& game, string arg) {
     if (game.playerShip->currentPlanet == nullptr) {
         cout << "No planet to explore" << endl;
         return;
@@ -538,7 +552,7 @@ void useRobot(Game& game, string arg) {
         }
     }
     cout << "Robot #" + arg + " not found" << endl;
-}
+}*/
 
 //END
 int rand_range(int min, int max) {return rand() % (max - min + 1) + min;}
@@ -580,18 +594,18 @@ int main() {
     vector<Galaxy> galaxies;
     PlayerShip playership;
     PlanetManager planetManager;
-    ExplorationManager explorationManager;
+    //ExplorationManager explorationManager;
     Game game;
     game.playerShip = &playership;
     game.commandManager = &commandManager;
     game.namingManager = &namingManager;
     game.planetManager = &planetManager;
     game.galaxies = &galaxies;
-    game.explorationManager = &explorationManager;
+    //game.explorationManager = &explorationManager;
     commandManager.game = &game;
 
     namingManager.init();
-    explorationManager.init();
+    //explorationManager.init();
 
     //commands are added here
     //commandManager.addCommand("warp", "Warp to a new galaxy using warp cells (takes galaxy name)", [&](string arg) { warpToGalaxy(game, arg); }); //not a normal feature, idk how to/want to implement it
@@ -600,12 +614,12 @@ int main() {
     commandManager.addCommand("warp", "Warp to another star system using warp cells (takes star system name)", [&](string arg) { flyToStarSystem(game, arg); });
     commandManager.addCommand("fly", "Fly to a new planet (takes planet name)", [&](string arg) { flyToPlanet(game, arg); });
     commandManager.addCommand("dock", "Visit the space station in the current star system", [&](string arg) { visitSpaceStation(game, arg); });
-    commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { activateScanner(game, arg); }, "", "planet");
-    commandManager.addCommand("explore", "Use your planet robot brigade to explore the planet and gather resources", [&](string arg) { explorePlanet(game, arg); }, "", "planet");
+    //commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { activateScanner(game, arg); }, "", "planet");
+    //commandManager.addCommand("explore", "Use your planet robot brigade to explore the planet and gather resources", [&](string arg) { explorePlanet(game, arg); }, "", "planet");
     //exploration
-    commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { exploreScanner(game, arg); }, "exploration");
-    commandManager.addCommand("use", "Use a robot to explore a location (takes robot ID)", [&](string arg) { useRobot(game, arg); }, "exploration");
-    commandManager.addCommand("return", "Complete the exploration mission and return to the ship", [&](string arg) { commandManager.changeState(""); }, "exploration");
+    //commandManager.addCommand("scan", "Activate the scanner for locational analysis", [&](string arg) { exploreScanner(game, arg); }, "exploration");
+    //commandManager.addCommand("use", "Use a robot to explore a location (takes robot ID)", [&](string arg) { useRobot(game, arg); }, "exploration");
+    //commandManager.addCommand("return", "Complete the exploration mission and return to the ship", [&](string arg) { commandManager.changeState(""); }, "exploration");
 
     for (int g = 0; g < GALAXY_COUNT; g++) {galaxies.push_back(generateGalaxy(&namingManager));}
     for (auto galaxy : galaxies) {game.galaxyNames.push_back(galaxy.name);}
